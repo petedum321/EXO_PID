@@ -1,0 +1,211 @@
+#include <Arduino.h>
+#include <math.h>
+
+// ========= PINAGEM (ESP32) =========
+#define RPWM_PIN 26
+#define LPWM_PIN 27
+#define REN_PIN  16
+#define LEN_PIN  17
+
+#define ENCODER_A 32
+#define ENCODER_B 33
+const int PPR = 360;          // pulsos por volta no modo 1x
+
+// ========= ENCODER =========
+volatile long encCount = 0;
+volatile long encOffset = 0;  // permite zerar via comando
+IRAM_ATTR void encISR_A() {
+  // Direção pela fase B: se A mudou e A==B, incrementa, senão decrementa
+  encCount += (digitalRead(ENCODER_A) == digitalRead(ENCODER_B)) ? 1 : -1;
+}
+
+static inline long readEncAtomic() {
+  noInterrupts();
+  long v = encCount;
+  long off = encOffset;
+  interrupts();
+  return v - off;
+}
+
+// Ângulo 0..360 considerando zeragem
+float readEncoderDeg() {
+  long c = readEncAtomic();
+  long pos = ((c % PPR) + PPR) % PPR;     // wrap seguro
+  return pos * 360.0f / PPR;
+}
+
+// erro angular com menor arco (−180..+180)
+float angleError(float sp_deg, float pv_deg) {
+  float e = sp_deg - pv_deg;
+  while (e > 180.0f) e -= 360.0f;
+  while (e < -180.0f) e += 360.0f;
+  return e;
+}
+
+void encoderBegin() {
+  pinMode(ENCODER_A, INPUT_PULLUP);
+  pinMode(ENCODER_B, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(ENCODER_A), encISR_A, CHANGE); // melhor que RISING
+}
+
+// ========= MOTOR / PWM =========
+const int UPPER_PWM = 255;
+const int LOWER_PWM = -255;   // se for unidirecional, mude para 0
+
+void motorBegin() {
+  pinMode(REN_PIN, OUTPUT);
+  pinMode(LEN_PIN, OUTPUT);
+  digitalWrite(REN_PIN, HIGH);
+  digitalWrite(LEN_PIN, HIGH);
+
+  pinMode(RPWM_PIN, OUTPUT);
+  pinMode(LPWM_PIN, OUTPUT);
+  analogWrite(RPWM_PIN, 0);
+  analogWrite(LPWM_PIN, 0);
+}
+
+void motorSet(int duty) {
+  duty = constrain(duty, LOWER_PWM, UPPER_PWM);
+  if (duty > 0) {
+    analogWrite(RPWM_PIN, duty);
+    analogWrite(LPWM_PIN, 0);
+  } else if (duty < 0) {
+    analogWrite(RPWM_PIN, 0);
+    analogWrite(LPWM_PIN, -duty);
+  } else {
+    analogWrite(RPWM_PIN, 0);
+    analogWrite(LPWM_PIN, 0);
+  }
+}
+
+// ========= PID =========
+float Kp = 2.0f;   
+float Ki = 0.5f;   
+float Kd = 0.3f;   // ajuda a amortecer
+const float Kb = 1.0f;       // Coeficiente de Back-Calculation (simulink)
+
+float target_deg = 0.0f;      // Onde queremos chegar (alvo final)
+float setpoint_deg = 0.0f;    // Onde o PID deve mirar AGORA (alvo móvel)
+const float max_speed_dps = 270.0f; // VELOCIDADE MÁXIMA em graus por segundo. AJUSTE ESTE VALOR!
+
+const uint32_t Ts_ms = 10;
+uint32_t lastUpdate = 0;
+
+float iTerm = 0.0f;
+const float iTermLimit = 255.0f; 
+
+const int   minPWM   = 60;   // Zona morta da ponte/motor
+const float tol_deg  = 1.0f; // Faixa onde consideramos que o alvo foi atingido
+
+void pidStep() {
+    static float pv_prev = 0.0f;
+    float pv = readEncoderDeg();
+    float e  = angleError(setpoint_deg, pv); // <<< Note que o erro é contra o setpoint_deg (alvo móvel)
+
+    if (fabsf(e) <= tol_deg && fabsf(target_deg - pv) <= tol_deg) {
+        motorSet(0);
+        iTerm = 0.0f;
+        pv_prev = pv;
+        return;
+    }
+
+    const float Ts = Ts_ms / 1000.0f;
+    float pTerm = Kp * e;
+    float dTerm = -Kd * (pv - pv_prev) / Ts;
+    pv_prev = pv;
+
+    float u = pTerm + iTerm + dTerm;
+    
+    int duty = 0;
+    if (u > 0) {
+        duty = (int)lroundf(u);
+        if (duty < minPWM) duty = minPWM;
+        duty = constrain(duty, minPWM, UPPER_PWM);
+    } else if (u < 0) {
+        duty = (int)lroundf(u);
+        if (duty > -minPWM) duty = -minPWM;
+        duty = constrain(duty, LOWER_PWM, -minPWM);
+    }
+
+    float saturationError = u - duty;
+    iTerm += (Ki * e - Kb * saturationError) * Ts;
+    iTerm = constrain(iTerm, -iTermLimit, iTermLimit);
+
+    motorSet(duty);
+}
+
+void serialTask() {
+  if (Serial.available()) {
+    // Lê o valor, mas não zera o contador se nada for lido (evita setar 0 por engano)
+    String input = Serial.readStringUntil('\n');
+    input.trim();
+    if (input.length() > 0) {
+        if (input == "z") {
+            noInterrupts();
+            encOffset = encCount;
+            interrupts();
+            target_deg = 0;
+            setpoint_deg = 0;
+            Serial.println("Encoder zerado.");
+        } else {
+            target_deg = input.toFloat();
+            Serial.print("Novo alvo: ");
+            Serial.println(target_deg);
+        }
+    }
+  }
+}
+
+// A função printTask() continua a mesma, mas vamos adicionar o target para depuração.
+void printTask() {
+  static uint32_t t0 = 0;
+  uint32_t now = millis();
+  if (now - t0 >= 100) { // Imprime mais rápido para melhor visualização
+    t0 = now;
+    float pv = readEncoderDeg();
+    Serial.print(F("TGT="));  Serial.print(target_deg, 1);
+    Serial.print(F(" | SP="));   Serial.print(setpoint_deg, 1);
+    Serial.print(F(" | ANG="));  Serial.println(pv, 1);
+  }
+}
+
+// --- SETUP ---
+// No setup, inicialize a posição atual para evitar um pulo inicial
+void setup() {
+  Serial.begin(115200);
+  encoderBegin();
+  motorBegin();
+  delay(500); // Um pouco mais de tempo para tudo estabilizar
+  
+  // Sincroniza tudo com a posição inicial
+  setpoint_deg = readEncoderDeg();
+  target_deg = setpoint_deg;
+
+  Serial.println(F("PID com Rampa de Velocidade. Digite 0..360 e ENTER."));
+  lastUpdate = millis();
+}
+
+
+// --- LOOP PRINCIPAL ATUALIZADO ---
+void loop() {
+  serialTask();
+  printTask();
+
+  uint32_t now = millis();
+  if (now - lastUpdate >= Ts_ms) {
+    // Calcula o quanto o setpoint pode se mover neste ciclo
+    const float max_step = max_speed_dps * (Ts_ms / 1000.0f);
+    
+    // Move o setpoint_deg em direção ao target_deg
+    float error_to_target = angleError(target_deg, setpoint_deg);
+    float step = constrain(error_to_target, -max_step, max_step);
+    setpoint_deg += step;
+
+    // Garante que o setpoint fique no range 0-360 para evitar acúmulo de voltas
+    if (setpoint_deg >= 360.0f) setpoint_deg -= 360.0f;
+    if (setpoint_deg < 0.0f)    setpoint_deg += 360.0f;
+    
+    lastUpdate += Ts_ms;
+    pidStep();
+  }
+}
