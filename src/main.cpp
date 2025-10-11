@@ -123,13 +123,24 @@ void setMotorSpeed(int speed) {
  * @return A corrente do motor em Amperes (A).
  */
 float getMotorCurrent() {
-  int raw_R_IS = analogRead(R_IS_PIN);
-  int raw_L_IS = analogRead(L_IS_PIN);
+  // Média de 10 leituras para cada pino
+  int soma_R = 0, soma_L = 0;
+  for (int i = 0; i < 10; i++) {
+    soma_R += analogRead(R_IS_PIN);
+    soma_L += analogRead(L_IS_PIN);
+    delay(2);
+  }
+  int raw_R_IS = soma_R / 10;
+  int raw_L_IS = soma_L / 10;
+  Serial.print("raw_R_IS: "); Serial.println(raw_R_IS);
+  Serial.print("raw_L_IS: "); Serial.println(raw_L_IS);
+  float v_is_R = raw_R_IS * (VREF / ADC_RESOLUTION);
+  float v_is_L = raw_L_IS * (VREF / ADC_RESOLUTION);
+  Serial.print("V_R_IS: "); Serial.println(v_is_R, 4);
+  Serial.print("V_L_IS: "); Serial.println(v_is_L, 4);
   int active_raw_value = (raw_R_IS > raw_L_IS) ? raw_R_IS : raw_L_IS;
-  
   float v_is = active_raw_value * (VREF / ADC_RESOLUTION);
   float i_is = v_is / RESISTOR_IS;
   float motor_current = i_is * K_ILIS;
-  
   return motor_current;
 }
