@@ -57,9 +57,6 @@ void handleStatus() {
     addCorsHeaders();
     server.send(200, "application/json", statusJson);
 }
-const int NUM_MOTORS = 4; 
-const int PPR = 360;      
-
 // Motor 0 (Quadril Direito)
 #define RPWM0_PIN 33
 #define LPWM0_PIN 32
@@ -156,11 +153,7 @@ Passo sequenciaDePassos[] = {
 
 
 const int NUM_PASSOS = sizeof(sequenciaDePassos) / sizeof(Passo);
-// Variáveis de controle de sequência de marcha (precisam ser globais para WebServer)
-int passoAtual = 0;
-unsigned long tempoInicioMovimento = 0;
-bool aguardandoPosicao = false;
-const float TOLERANCIA_GRAUS = 15.0;
+// Variáveis de controle de sequência de marcha são declaradas no início do arquivo
 
 // Variáveis para guardar a posição inicial de cada motor no início da transição
 float motor_pos_inicial[NUM_MOTORS]={0.0, 0.0, 0.0, 0.0};
