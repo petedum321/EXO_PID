@@ -13,6 +13,8 @@ int passoAtual = 0;
 unsigned long tempoInicioMovimento = 0;
 bool aguardandoPosicao = false;
 const float TOLERANCIA_GRAUS = 15.0;
+const float TOLERANCIA_GRAUS_PARADO = 5.0;
+const float tol_deg = 15.0f;
 
 // --- WiFi/WebServer ---
 const char* ssid = "ESP32-AP";
@@ -288,6 +290,99 @@ void movimento_suave() {
     }
 }
 
+void movimento_parado() {
+    if (aguardandoPosicao) {
+        Passo target = sequenciaDePassos[passoAtual];
+
+        float posAtualM0 = readEncoderDeg(all_motors[0]);
+        float posAtualM1 = readEncoderDeg(all_motors[1]);
+        float posAtualM2 = readEncoderDeg(all_motors[2]);
+        float posAtualM3 = readEncoderDeg(all_motors[3]);
+        bool motor0_chegou = fabsf(angleError(target.motor0_target_deg, posAtualM0)) <= TOLERANCIA_GRAUS_PARADO;
+        bool motor1_chegou = fabsf(angleError(target.motor1_target_deg, posAtualM1)) <= TOLERANCIA_GRAUS_PARADO;
+        bool motor2_chegou = fabsf(angleError(target.motor2_target_deg, posAtualM2)) <= TOLERANCIA_GRAUS_PARADO;
+        bool motor3_chegou = fabsf(angleError(target.motor3_target_deg, posAtualM3)) <= TOLERANCIA_GRAUS_PARADO;
+
+        all_motors[0].modoPidAtual = target.ganhoMotor0;
+        all_motors[1].modoPidAtual = target.ganhoMotor1;
+        all_motors[2].modoPidAtual = target.ganhoMotor2;
+        all_motors[3].modoPidAtual = target.ganhoMotor3;
+
+        //Serial.println("target.motor0_target_deg - posAtualM0 =");
+        //Serial.print(target.motor0_target_deg - posAtualM0);
+        //Serial.println("posAtualM0 = ");
+        //Serial.print(posAtualM0);
+        //Serial.println(" ");
+
+        //Serial.println("target.motor1_target_deg - posAtualM1 =");
+        //Serial.print(target.motor1_target_deg - posAtualM1);
+        //Serial.println("posAtualM1 = ");
+        //Serial.print(posAtualM1);
+        //Serial.println(" ");
+        
+        if (motor0_chegou && motor1_chegou && motor2_chegou && motor3_chegou) {
+            Serial.printf(">>> POSICAO CONFIRMADA! M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f <<<\n", posAtualM0, posAtualM1, posAtualM2, posAtualM3);
+            
+            aguardandoPosicao = false; 
+
+            //motor0_pos_inicial = target.motor0_target_deg;
+            //motor1_pos_inicial = target.motor1_target_deg;
+
+            motor_pos_inicial[0] = readEncoderDeg(all_motors[0]);
+            motor_pos_inicial[1] = readEncoderDeg(all_motors[1]);
+            motor_pos_inicial[2] = readEncoderDeg(all_motors[2]);
+            motor_pos_inicial[3] = readEncoderDeg(all_motors[3]);
+
+            passoAtual++;
+            if (passoAtual >= NUM_PASSOS) {
+                passoAtual = 0;
+            }
+            
+            tempoInicioMovimento = millis();
+            
+            Serial.printf("--- INICIANDO PROXIMO PASSO --- \nPasso: %d, Ponto de Partida: M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f\n", passoAtual, motor_pos_inicial[0], motor_pos_inicial[1], motor_pos_inicial[2], motor_pos_inicial[3]);
+        }
+
+        return; 
+    }
+
+
+    if (tempoInicioMovimento == 0) {
+        motor_pos_inicial[0] = readEncoderDeg(all_motors[0]);
+        motor_pos_inicial[1] = readEncoderDeg(all_motors[1]);
+        motor_pos_inicial[2] = readEncoderDeg(all_motors[2]);
+        motor_pos_inicial[3] = readEncoderDeg(all_motors[3]);
+        tempoInicioMovimento = millis();
+        Serial.printf("\n--- INICIANDO SEQUENCIA --- \nPasso: %d, Ponto de Partida: M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f\n", passoAtual, motor_pos_inicial[0], motor_pos_inicial[1], motor_pos_inicial[2], motor_pos_inicial[3]);
+    }
+
+    Passo target = sequenciaDePassos[passoAtual];
+    unsigned long tempoDecorrido = millis() - tempoInicioMovimento;
+
+    if (tempoDecorrido < target.duracao_ms) {
+        // Interpola suavemente enquanto o tempo não acaba
+        float progresso = (float)tempoDecorrido / (float)target.duracao_ms;
+        float fator = (1.0 - cos(progresso * PI)) / 2.0;
+        all_motors[0].target_deg = motor_pos_inicial[0] + (target.motor0_target_deg - motor_pos_inicial[0]) * fator;
+        all_motors[1].target_deg = motor_pos_inicial[1] + (target.motor1_target_deg - motor_pos_inicial[1]) * fator;
+        all_motors[2].target_deg = motor_pos_inicial[2] + (target.motor2_target_deg - motor_pos_inicial[2]) * fator;
+        all_motors[3].target_deg = motor_pos_inicial[3] + (target.motor3_target_deg - motor_pos_inicial[3]) * fator;
+    } else {
+        // O tempo acabou! Hora de entrar no modo de "espera".
+        Serial.printf("!!! Passo %d TEMPO CONCLUIDO. Alvo Final: M0=%.1f, M1=%.1f. Aguardando posicao...\n", passoAtual, target.motor0_target_deg, target.motor1_target_deg);
+        
+        // Garante que o alvo final seja cravado para o PID ter uma referência fixa
+        all_motors[0].target_deg = target.motor0_target_deg;
+        all_motors[1].target_deg = target.motor1_target_deg;
+        all_motors[2].target_deg = target.motor2_target_deg;
+        all_motors[3].target_deg = target.motor3_target_deg;
+        
+        aguardandoPosicao = true; // Ativa a flag de espera
+    }
+}
+
+
+
 float lerCorrente(int pino_sensor) {
     // Para maior estabilidade, fazemos uma média de algumas leituras
     int somaLeiturasADC = 0;
@@ -328,7 +423,13 @@ void motionProfilerStep(Motor &motor) {
 }
 
 void pidStep(Motor &motor) {
-    const float tol_deg = 15.0f;
+
+    if(marcha_ativa){
+        const float tol_deg = 15.0f;
+    }
+    else {
+        const float tol_deg = 5.0f;
+    }
     const int UPPER_PWM = 255;
     const int LOWER_PWM = -255;
     const float iTermLimit = 255.0f;
@@ -661,5 +762,11 @@ void loop() {
     if (marcha_ativa) {
         movimento_suave();
     }
-
+    else {
+        movimento_parado();
+        all_motors[0].target_deg = 0.0f;
+        all_motors[1].target_deg = 0.0f;
+        all_motors[2].target_deg = 0.0f;
+        all_motors[3].target_deg = 0.0f;
+    }
 }
