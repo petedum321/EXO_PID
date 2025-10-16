@@ -47,6 +47,14 @@ void startComPerfil(String nomePerfil) {
 }
 void handleStop() {
     marcha_ativa = false;
+
+    // --- ADICIONADO ---
+    // Reseta o estado da máquina de estados da marcha para um início limpo na próxima vez.
+    passoAtual = 0;
+    tempoInicioMovimento = 0;
+    aguardandoPosicao = false;
+    // ------------------
+
     addCorsHeaders();
     server.send(200, "text/plain", "Marcha parada");
 }
@@ -136,22 +144,97 @@ struct Passo {
     int ganhoMotor3;
 };
 
-Passo sequenciaDePassos[] = {
+//Marcha
+Passo sequenciaDePassos_marcha[] = {
 //m0_Alvo, M1_Alvo, M2_Alvo, M3_Alvo. Duranção, PID M0, PID M1, PID M2, PID M3
-    {0.0, 40.0, 0.0, 0.0, 2000, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA}, // VALIDADO
-    {40.0, 40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA}, // VALIDADO
-    {40.0, 40.0, 30.0, -30.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA},
-    {40.0, 40.0, 60.0, -30.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},
-    {0.0, 0.0, 60.0, -30.0, 800, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},
-    {0.0, 0.0, 60.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},
-    {0.0, 0.0, 0.0, 0.0, 2000, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA }, 
-    {0.0, 0.0, 0.0, 40.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA}, 
-    {0.0, 0.0, 40.0, 40.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA}, 
-    {0.0, -40.0, 40.0, 40.0,  1200, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA}, 
-    {30.0, -40.0, 40.0, 40.0,  1000, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},  
-    {40.0, -40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},
-    {0.0, 0.0, 0.0, 0.0, 2500, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }
+    {0.0, 40.0, 0.0, 0.0, 2000, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA},            // Movimento 1
+    {40.0, 40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA}, //1° Passo    // Movimento 2
+    {40.0, 40.0, 30.0, -30.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA} ,          // Movimento 3
+    {40.0, 40.0, 60.0, -30.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},           // Movimento 4
+    {0.0, 0.0, 60.0, -30.0, 800, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 5
+    {0.0, 0.0, 60.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 6
+    {0.0, 0.0, 0.0, 0.0, 2000, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA },                // Movimento 7
+    {0.0, 0.0, 0.0, 40.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},              // Movimento 8
+    {0.0, 0.0, 40.0, 40.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA}, //2° Passo  // Movimento 9
+    {0.0, -40.0, 40.0, 40.0,  1200, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},          // Movimento 10
+    {30.0, -40.0, 40.0, 40.0,  1000, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},           // Movimento 11
+    {40.0, -40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},              // Movimento 12
+    {0.0, 0.0, 0.0, 0.0, 1000, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }               // Movimento 13
 };
+
+//Quadril Esquerdo
+Passo sequenciaDePassos_quadril_esquerdo[] = {
+//m0_Alvo, M1_Alvo, M2_Alvo, M3_Alvo. Duranção, PID M0, PID M1, PID M2, PID M3
+    {0.0, 40.0, 0.0, 0.0, 2000, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA},            // Movimento 1
+    {0.0, 40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 2
+    {0.0, 40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA} ,              // Movimento 3
+    {0.0, 40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 4
+    {0.0, 0.0, 0.0, 0.0, 1000, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},                // Movimento 5
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                 // Movimento 6
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA },                // Movimento 7
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},               // Movimento 8
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},               // Movimento 9
+    {0.0, -40.0, 0.0, 0.0,  1200, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},           // Movimento 10
+    {0.0, -40.0, 0.0, 0.0,  1000, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},             // Movimento 11
+    {0.0, -40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},              // Movimento 12
+    {0.0, 0.0, 0.0, 0.0, 1000, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }              // Movimento 13
+};
+
+//Quadril Direito
+Passo sequenciaDePassos_quadril_direito[] = {
+//m0_Alvo, M1_Alvo, M2_Alvo, M3_Alvo. Duranção, PID M0, PID M1, PID M2, PID M3
+    {0.0, 0.0, 0.0, 0.0, 100, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA},            // Movimento 1
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 2
+    {0.0, 0.0, 0.0, -30.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA} ,           // Movimento 3
+    {0.0, 0.0, 0.0, -30.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},            // Movimento 4
+    {0.0, 0.0, 0.0, -30.0, 800, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 5
+    {0.0, 0.0, 0.0, 0.0, 1000, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                 // Movimento 6
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA },                // Movimento 7
+    {0.0, 0.0, 0.0, 40.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},              // Movimento 8
+    {0.0, 0.0, 0.0, 40.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},             // Movimento 9
+    {0.0, 0.0, 0.0, 40.0,  100, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},             // Movimento 10
+    {0.0, 0.0, 0.0, 40.0,  100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},              // Movimento 11
+    {0.0, 0.0, 0.0, 0.0, 1000, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 12
+    {0.0, 0.0, 0.0, 0.0, 100, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }               // Movimento 13
+};
+
+//Joelho Esquerdo
+Passo sequenciaDePassos_joelho_esquerdo[] = {
+//m0_Alvo, M1_Alvo, M2_Alvo, M3_Alvo. Duranção, PID M0, PID M1, PID M2, PID M3
+    {0.0, 0.0, 0.0, 0.0, 100, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA},            // Movimento 1
+    {40.0, 0.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA}, //1° Passo    // Movimento 2
+    {40.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA} ,          // Movimento 3
+    {40.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},           // Movimento 4
+    {0.0, 0.0, 0.0, 0.0, 800, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 5
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 6
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA },                // Movimento 7
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},              // Movimento 8
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA}, //2° Passo  // Movimento 9
+    {0.0, 0.0, 0.0, 0.0,  100, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},          // Movimento 10
+    {30.0, 0.0, 0.0, 0.0,  1000, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},           // Movimento 11
+    {40.0, 0.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},              // Movimento 12
+    {0.0, 0.0, 0.0, 0.0, 1100, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }               // Movimento 13
+};
+
+//Joelho Direito
+Passo sequenciaDePassos_joelho_direito[] = {
+//m0_Alvo, M1_Alvo, M2_Alvo, M3_Alvo. Duranção, PID M0, PID M1, PID M2, PID M3
+    {0.0, 0.0, 0.0, 0.0, 100, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA},            // Movimento 1
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA}, //1° Passo    // Movimento 2
+    {0.0, 0.0, 0.0, -30.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA} ,          // Movimento 3
+    {0.0, 0.0, 0.0, -30.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},           // Movimento 4
+    {0.0, 0.0, 0.0, -30.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 5
+    {0.0, 0.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 6
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA },                // Movimento 7
+    {0.0, 0.0, 0.0, 40.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},              // Movimento 8
+    {0.0, 0.0, 0.0, 40.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA}, //2° Passo  // Movimento 9
+    {0.0, 0.0, 0.0, 40.0,  100, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},          // Movimento 10
+    {0.0, 0.0, 0.0, 40.0,  100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},           // Movimento 11
+    {0.0, 0.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},              // Movimento 12
+    {0.0, 0.0, 0.0, 0.0, 1000, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }               // Movimento 13
+};
+
+
 
 
 const int NUM_PASSOS = sizeof(sequenciaDePassos) / sizeof(Passo);
@@ -290,99 +373,6 @@ void movimento_suave() {
     }
 }
 
-void movimento_parado() {
-    if (aguardandoPosicao) {
-        Passo target = sequenciaDePassos[passoAtual];
-
-        float posAtualM0 = readEncoderDeg(all_motors[0]);
-        float posAtualM1 = readEncoderDeg(all_motors[1]);
-        float posAtualM2 = readEncoderDeg(all_motors[2]);
-        float posAtualM3 = readEncoderDeg(all_motors[3]);
-        bool motor0_chegou = fabsf(angleError(target.motor0_target_deg, posAtualM0)) <= TOLERANCIA_GRAUS_PARADO;
-        bool motor1_chegou = fabsf(angleError(target.motor1_target_deg, posAtualM1)) <= TOLERANCIA_GRAUS_PARADO;
-        bool motor2_chegou = fabsf(angleError(target.motor2_target_deg, posAtualM2)) <= TOLERANCIA_GRAUS_PARADO;
-        bool motor3_chegou = fabsf(angleError(target.motor3_target_deg, posAtualM3)) <= TOLERANCIA_GRAUS_PARADO;
-
-        all_motors[0].modoPidAtual = target.ganhoMotor0;
-        all_motors[1].modoPidAtual = target.ganhoMotor1;
-        all_motors[2].modoPidAtual = target.ganhoMotor2;
-        all_motors[3].modoPidAtual = target.ganhoMotor3;
-
-        //Serial.println("target.motor0_target_deg - posAtualM0 =");
-        //Serial.print(target.motor0_target_deg - posAtualM0);
-        //Serial.println("posAtualM0 = ");
-        //Serial.print(posAtualM0);
-        //Serial.println(" ");
-
-        //Serial.println("target.motor1_target_deg - posAtualM1 =");
-        //Serial.print(target.motor1_target_deg - posAtualM1);
-        //Serial.println("posAtualM1 = ");
-        //Serial.print(posAtualM1);
-        //Serial.println(" ");
-        
-        if (motor0_chegou && motor1_chegou && motor2_chegou && motor3_chegou) {
-            Serial.printf(">>> POSICAO CONFIRMADA! M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f <<<\n", posAtualM0, posAtualM1, posAtualM2, posAtualM3);
-            
-            aguardandoPosicao = false; 
-
-            //motor0_pos_inicial = target.motor0_target_deg;
-            //motor1_pos_inicial = target.motor1_target_deg;
-
-            motor_pos_inicial[0] = readEncoderDeg(all_motors[0]);
-            motor_pos_inicial[1] = readEncoderDeg(all_motors[1]);
-            motor_pos_inicial[2] = readEncoderDeg(all_motors[2]);
-            motor_pos_inicial[3] = readEncoderDeg(all_motors[3]);
-
-            passoAtual++;
-            if (passoAtual >= NUM_PASSOS) {
-                passoAtual = 0;
-            }
-            
-            tempoInicioMovimento = millis();
-            
-            Serial.printf("--- INICIANDO PROXIMO PASSO --- \nPasso: %d, Ponto de Partida: M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f\n", passoAtual, motor_pos_inicial[0], motor_pos_inicial[1], motor_pos_inicial[2], motor_pos_inicial[3]);
-        }
-
-        return; 
-    }
-
-
-    if (tempoInicioMovimento == 0) {
-        motor_pos_inicial[0] = readEncoderDeg(all_motors[0]);
-        motor_pos_inicial[1] = readEncoderDeg(all_motors[1]);
-        motor_pos_inicial[2] = readEncoderDeg(all_motors[2]);
-        motor_pos_inicial[3] = readEncoderDeg(all_motors[3]);
-        tempoInicioMovimento = millis();
-        Serial.printf("\n--- INICIANDO SEQUENCIA --- \nPasso: %d, Ponto de Partida: M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f\n", passoAtual, motor_pos_inicial[0], motor_pos_inicial[1], motor_pos_inicial[2], motor_pos_inicial[3]);
-    }
-
-    Passo target = sequenciaDePassos[passoAtual];
-    unsigned long tempoDecorrido = millis() - tempoInicioMovimento;
-
-    if (tempoDecorrido < target.duracao_ms) {
-        // Interpola suavemente enquanto o tempo não acaba
-        float progresso = (float)tempoDecorrido / (float)target.duracao_ms;
-        float fator = (1.0 - cos(progresso * PI)) / 2.0;
-        all_motors[0].target_deg = motor_pos_inicial[0] + (target.motor0_target_deg - motor_pos_inicial[0]) * fator;
-        all_motors[1].target_deg = motor_pos_inicial[1] + (target.motor1_target_deg - motor_pos_inicial[1]) * fator;
-        all_motors[2].target_deg = motor_pos_inicial[2] + (target.motor2_target_deg - motor_pos_inicial[2]) * fator;
-        all_motors[3].target_deg = motor_pos_inicial[3] + (target.motor3_target_deg - motor_pos_inicial[3]) * fator;
-    } else {
-        // O tempo acabou! Hora de entrar no modo de "espera".
-        Serial.printf("!!! Passo %d TEMPO CONCLUIDO. Alvo Final: M0=%.1f, M1=%.1f. Aguardando posicao...\n", passoAtual, target.motor0_target_deg, target.motor1_target_deg);
-        
-        // Garante que o alvo final seja cravado para o PID ter uma referência fixa
-        all_motors[0].target_deg = target.motor0_target_deg;
-        all_motors[1].target_deg = target.motor1_target_deg;
-        all_motors[2].target_deg = target.motor2_target_deg;
-        all_motors[3].target_deg = target.motor3_target_deg;
-        
-        aguardandoPosicao = true; // Ativa a flag de espera
-    }
-}
-
-
-
 float lerCorrente(int pino_sensor) {
     // Para maior estabilidade, fazemos uma média de algumas leituras
     int somaLeiturasADC = 0;
@@ -423,13 +413,15 @@ void motionProfilerStep(Motor &motor) {
 }
 
 void pidStep(Motor &motor) {
+    // --- CORREÇÃO DE ESCOPO ---
+    float tol_deg_atual; // Variável declarada fora dos blocos
+    if (marcha_ativa) {
+        tol_deg_atual = TOLERANCIA_GRAUS; // Usa a tolerância de 15.0 para a marcha
+    } else {
+        tol_deg_atual = 3.0f; // Tolerância bem baixa (.0 grau) para quando estiver parado
+    }
+    // -------------------------
 
-    if(marcha_ativa){
-        const float tol_deg = 15.0f;
-    }
-    else {
-        const float tol_deg = 5.0f;
-    }
     const int UPPER_PWM = 255;
     const int LOWER_PWM = -255;
     const float iTermLimit = 255.0f;
@@ -437,18 +429,18 @@ void pidStep(Motor &motor) {
 
     float pv = readEncoderDeg(motor);
     float e = angleError(motor.setpoint_deg, pv);
-    
-    bool movimentoTerminou = fabsf(angleError(motor.target_deg, motor.setpoint_deg)) < 0.1f;
 
-    bool dentroDaTolerancia = fabsf(angleError(motor.target_deg, pv)) <= tol_deg;
+    bool movimentoTerminou = fabsf(angleError(motor.target_deg, motor.setpoint_deg)) < 0.1f;
+    // --- USA A VARIÁVEL CORRETA ---
+    bool dentroDaTolerancia = fabsf(angleError(motor.target_deg, pv)) <= tol_deg_atual;
 
     if (movimentoTerminou && dentroDaTolerancia) {
-        motorSet(motor, 0); 
-        motor.iTerm = 0.0f; 
-        motor.pv_prev = pv; 
+        motorSet(motor, 0);
+        motor.iTerm = 0.0f;
+        motor.pv_prev = pv;
         return;
     }
-    
+
     // --- O RESTO DA FUNÇÃO CONTINUA IGUAL ---
     float Kp_atual, Ki_atual, Kd_atual;
 
@@ -461,18 +453,18 @@ void pidStep(Motor &motor) {
         Ki_atual = motor.Ki_down;
         Kd_atual = motor.Kd_down;
     }
-    
+
     float pTerm = Kp_atual * e;
     float dTerm = -Kd_atual * (pv - motor.pv_prev) / Ts;
     motor.pv_prev = pv;
     float u = pTerm + motor.iTerm + dTerm;
-    
+
     int duty = lroundf(u);
-    
+
     float saturationError = u - duty;
     motor.iTerm += (Ki_atual * e - motor.Kb * saturationError) * Ts;
     motor.iTerm = constrain(motor.iTerm, -iTermLimit, iTermLimit);
-    
+
     motorSet(motor, duty);
 }
 
@@ -759,11 +751,14 @@ void loop() {
     serialTask();
     printTask();
     server.handleClient();
-    if (marcha_ativa) {
+   if (marcha_ativa) {
+        // Se a marcha está ativa, executa a sequência de passos suave.
         movimento_suave();
-    }
-    else {
-        movimento_parado();
+    } else {
+        // Se a marcha está parada, o alvo é sempre zero para todos os motores.
+        // O controle PID (que roda em suas próprias tasks) se encarregará de
+        // levar os motores para essa posição com a tolerância de 1.0 grau
+        // que definimos em pidStep().
         all_motors[0].target_deg = 0.0f;
         all_motors[1].target_deg = 0.0f;
         all_motors[2].target_deg = 0.0f;
