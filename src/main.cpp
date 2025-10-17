@@ -145,7 +145,7 @@ struct Passo {
 };
 
 //Marcha
-Passo sequenciaDePassos_marcha[] = {
+Passo sequenciaDePassos[] = {
 //m0_Alvo, M1_Alvo, M2_Alvo, M3_Alvo. Duranção, PID M0, PID M1, PID M2, PID M3
     {0.0, 40.0, 0.0, 0.0, 2000, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA},            // Movimento 1
     {40.0, 40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA}, //1° Passo    // Movimento 2
