@@ -10,6 +10,7 @@ const int PPR = 360;
 
 // Variáveis de controle de sequência de marcha (precisam ser declaradas antes do WebServer)
 int passoAtual = 0;
+int qtde_passos = 0;
 unsigned long tempoInicioMovimento = 0;
 bool aguardandoPosicao = false;
 const float TOLERANCIA_GRAUS = 15.0;
@@ -62,7 +63,7 @@ void handleStatus() {
     String statusJson = "{";
     statusJson += "\"perfil\": \"" + perfil + "\",";
     statusJson += "\"marcha_ativa\": " + String(marcha_ativa ? "true" : "false") + ",";
-    statusJson += "\"passoAtual\": " + String(passoAtual);
+    statusJson += "\"passoAtual\": " + String(qtde_passos);
     statusJson += "}";
     addCorsHeaders();
     server.send(200, "application/json", statusJson);
@@ -166,18 +167,18 @@ Passo sequenciaDePassos[] = {
 Passo sequenciaDePassos_quadril_esquerdo[] = {
 //m0_Alvo, M1_Alvo, M2_Alvo, M3_Alvo. Duranção, PID M0, PID M1, PID M2, PID M3
     {0.0, 40.0, 0.0, 0.0, 2000, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA},            // Movimento 1
-    {0.0, 40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 2
-    {0.0, 40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA} ,              // Movimento 3
-    {0.0, 40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 4
-    {0.0, 0.0, 0.0, 0.0, 1000, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},                // Movimento 5
+    {0.0, 40.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 2
+    {0.0, 40.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA} ,              // Movimento 3
+    {0.0, 40.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 4
+    {0.0, 0.0, 0.0, 0.0, 1500, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},                // Movimento 5
     {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                 // Movimento 6
     {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA },                // Movimento 7
     {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},               // Movimento 8
     {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},               // Movimento 9
-    {0.0, -40.0, 0.0, 0.0,  1200, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},           // Movimento 10
-    {0.0, -40.0, 0.0, 0.0,  1000, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},             // Movimento 11
-    {0.0, -40.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},              // Movimento 12
-    {0.0, 0.0, 0.0, 0.0, 1000, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }              // Movimento 13
+    {0.0, -40.0, 0.0, 0.0,  1500, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},           // Movimento 10
+    {0.0, -40.0, 0.0, 0.0,  100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},             // Movimento 11
+    {0.0, -40.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},              // Movimento 12
+    {0.0, 0.0, 0.0, 0.0, 1500, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }              // Movimento 13
 };
 
 //Quadril Direito
@@ -185,16 +186,16 @@ Passo sequenciaDePassos_quadril_direito[] = {
 //m0_Alvo, M1_Alvo, M2_Alvo, M3_Alvo. Duranção, PID M0, PID M1, PID M2, PID M3
     {0.0, 0.0, 0.0, 0.0, 100, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA},            // Movimento 1
     {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 2
-    {0.0, 0.0, 0.0, -30.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA} ,           // Movimento 3
-    {0.0, 0.0, 0.0, -30.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},            // Movimento 4
-    {0.0, 0.0, 0.0, -30.0, 800, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 5
-    {0.0, 0.0, 0.0, 0.0, 1000, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                 // Movimento 6
+    {0.0, 0.0, 0.0, -30.0, 1500, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA} ,           // Movimento 3
+    {0.0, 0.0, 0.0, -30.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},            // Movimento 4
+    {0.0, 0.0, 0.0, -30.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 5
+    {0.0, 0.0, 0.0, 0.0, 1500, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                 // Movimento 6
     {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA },                // Movimento 7
     {0.0, 0.0, 0.0, 40.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},              // Movimento 8
     {0.0, 0.0, 0.0, 40.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},             // Movimento 9
     {0.0, 0.0, 0.0, 40.0,  100, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},             // Movimento 10
     {0.0, 0.0, 0.0, 40.0,  100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},              // Movimento 11
-    {0.0, 0.0, 0.0, 0.0, 1000, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 12
+    {0.0, 0.0, 0.0, 0.0, 1500, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 12
     {0.0, 0.0, 0.0, 0.0, 100, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }               // Movimento 13
 };
 
@@ -202,39 +203,37 @@ Passo sequenciaDePassos_quadril_direito[] = {
 Passo sequenciaDePassos_joelho_esquerdo[] = {
 //m0_Alvo, M1_Alvo, M2_Alvo, M3_Alvo. Duranção, PID M0, PID M1, PID M2, PID M3
     {0.0, 0.0, 0.0, 0.0, 100, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA},            // Movimento 1
-    {40.0, 0.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA}, //1° Passo    // Movimento 2
+    {40.0, 0.0, 0.0, 0.0, 1500, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA}, //1° Passo    // Movimento 2
     {40.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA} ,          // Movimento 3
     {40.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},           // Movimento 4
-    {0.0, 0.0, 0.0, 0.0, 800, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 5
+    {0.0, 0.0, 0.0, 0.0, 1500, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 5
     {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 6
     {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA },                // Movimento 7
     {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},              // Movimento 8
     {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA}, //2° Passo  // Movimento 9
-    {0.0, 0.0, 0.0, 0.0,  100, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},          // Movimento 10
-    {30.0, 0.0, 0.0, 0.0,  1000, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},           // Movimento 11
-    {40.0, 0.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},              // Movimento 12
-    {0.0, 0.0, 0.0, 0.0, 1100, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }               // Movimento 13
+    {0.0, 0.0, 0.0, 0.0, 100, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},          // Movimento 10
+    {30.0, 0.0, 0.0, 0.0, 1500, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},           // Movimento 11
+    {40.0, 0.0, 0.0, 0.0, 1500, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},              // Movimento 12
+    {0.0, 0.0, 0.0, 0.0, 1500, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }               // Movimento 13
 };
 
 //Joelho Direito
 Passo sequenciaDePassos_joelho_direito[] = {
 //m0_Alvo, M1_Alvo, M2_Alvo, M3_Alvo. Duranção, PID M0, PID M1, PID M2, PID M3
     {0.0, 0.0, 0.0, 0.0, 100, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA, PID_DESCIDA},            // Movimento 1
-    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA}, //1° Passo    // Movimento 2
-    {0.0, 0.0, 0.0, -30.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA} ,          // Movimento 3
-    {0.0, 0.0, 0.0, -30.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},           // Movimento 4
-    {0.0, 0.0, 0.0, -30.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 5
-    {0.0, 0.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 6
+    {0.0, 0.0, 40.0, 0.0, 1500, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA}, //1° Passo    // Movimento 2
+    {0.0, 0.0, 40.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA} ,          // Movimento 3
+    {0.0, 0.0, 40.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},           // Movimento 4
+    {0.0, 0.0, 0.0, 0.0, 1500, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},              // Movimento 5
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},                // Movimento 6
     {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA },                // Movimento 7
-    {0.0, 0.0, 0.0, 40.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},              // Movimento 8
-    {0.0, 0.0, 0.0, 40.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA}, //2° Passo  // Movimento 9
-    {0.0, 0.0, 0.0, 40.0,  100, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},          // Movimento 10
-    {0.0, 0.0, 0.0, 40.0,  100, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},           // Movimento 11
-    {0.0, 0.0, 0.0, 0.0, 1200, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},              // Movimento 12
-    {0.0, 0.0, 0.0, 0.0, 1000, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }               // Movimento 13
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA},              // Movimento 8
+    {0.0, 0.0, 0.0, 0.0, 100, PID_SUBIDA, PID_SUBIDA, PID_DESCIDA, PID_DESCIDA}, //2° Passo  // Movimento 9
+    {0.0, 0.0, 0.0, 0.0, 100, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA},          // Movimento 10
+    {0.0, 0.0, 30.0, 0.0, 1500, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},           // Movimento 11
+    {0.0, 0.0, 40.0, 0.0, 1500, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA, PID_SUBIDA},              // Movimento 12
+    {0.0, 0.0, 0.0, 0.0, 1500, PID_DESCIDA, PID_SUBIDA, PID_DESCIDA, PID_SUBIDA }               // Movimento 13
 };
-
-
 
 
 const int NUM_PASSOS = sizeof(sequenciaDePassos) / sizeof(Passo);
@@ -282,6 +281,322 @@ void motorControlTask(void *pvParameters) {
     }
 }
 
+//Movimento Quadril Esquerdo
+
+void movimento_suave_quadril_esquerdo() {
+    if (aguardandoPosicao) {
+        Passo target = sequenciaDePassos_quadril_esquerdo[passoAtual];
+
+        float posAtualM0 = readEncoderDeg(all_motors[0]);
+        float posAtualM1 = readEncoderDeg(all_motors[1]);
+        float posAtualM2 = readEncoderDeg(all_motors[2]);
+        float posAtualM3 = readEncoderDeg(all_motors[3]);
+        bool motor0_chegou = fabsf(angleError(target.motor0_target_deg, posAtualM0)) <= TOLERANCIA_GRAUS;
+        bool motor1_chegou = fabsf(angleError(target.motor1_target_deg, posAtualM1)) <= TOLERANCIA_GRAUS;
+        bool motor2_chegou = fabsf(angleError(target.motor2_target_deg, posAtualM2)) <= TOLERANCIA_GRAUS;
+        bool motor3_chegou = fabsf(angleError(target.motor3_target_deg, posAtualM3)) <= TOLERANCIA_GRAUS;
+
+        all_motors[0].modoPidAtual = target.ganhoMotor0;
+        all_motors[1].modoPidAtual = target.ganhoMotor1;
+        all_motors[2].modoPidAtual = target.ganhoMotor2;
+        all_motors[3].modoPidAtual = target.ganhoMotor3;
+        
+        if (motor0_chegou && motor1_chegou && motor2_chegou && motor3_chegou) {
+            Serial.printf(">>> POSICAO CONFIRMADA! M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f <<<\n", posAtualM0, posAtualM1, posAtualM2, posAtualM3);
+            
+            aguardandoPosicao = false; 
+
+            motor_pos_inicial[0] = readEncoderDeg(all_motors[0]);
+            motor_pos_inicial[1] = readEncoderDeg(all_motors[1]);
+            motor_pos_inicial[2] = readEncoderDeg(all_motors[2]);
+            motor_pos_inicial[3] = readEncoderDeg(all_motors[3]);
+
+            passoAtual++;
+            if (passoAtual >= NUM_PASSOS) {
+                passoAtual = 0;
+            }
+            
+            tempoInicioMovimento = millis();
+            
+            Serial.printf("--- INICIANDO PROXIMO PASSO --- \nPasso: %d, Ponto de Partida: M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f\n", passoAtual, motor_pos_inicial[0], motor_pos_inicial[1], motor_pos_inicial[2], motor_pos_inicial[3]);
+        }
+
+        return; 
+    }
+
+
+    if (tempoInicioMovimento == 0) {
+        motor_pos_inicial[0] = readEncoderDeg(all_motors[0]);
+        motor_pos_inicial[1] = readEncoderDeg(all_motors[1]);
+        motor_pos_inicial[2] = readEncoderDeg(all_motors[2]);
+        motor_pos_inicial[3] = readEncoderDeg(all_motors[3]);
+        tempoInicioMovimento = millis();
+        Serial.printf("\n--- INICIANDO SEQUENCIA --- \nPasso: %d, Ponto de Partida: M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f\n", passoAtual, motor_pos_inicial[0], motor_pos_inicial[1], motor_pos_inicial[2], motor_pos_inicial[3]);
+    }
+
+    Passo target = sequenciaDePassos_quadril_esquerdo[passoAtual];
+    unsigned long tempoDecorrido = millis() - tempoInicioMovimento;
+
+    if (tempoDecorrido < target.duracao_ms) {
+        // Interpola suavemente enquanto o tempo não acaba
+        float progresso = (float)tempoDecorrido / (float)target.duracao_ms;
+        float fator = (1.0 - cos(progresso * PI)) / 2.0;
+        all_motors[0].target_deg = motor_pos_inicial[0] + (target.motor0_target_deg - motor_pos_inicial[0]) * fator;
+        all_motors[1].target_deg = motor_pos_inicial[1] + (target.motor1_target_deg - motor_pos_inicial[1]) * fator;
+        all_motors[2].target_deg = motor_pos_inicial[2] + (target.motor2_target_deg - motor_pos_inicial[2]) * fator;
+        all_motors[3].target_deg = motor_pos_inicial[3] + (target.motor3_target_deg - motor_pos_inicial[3]) * fator;
+    } else {
+        // O tempo acabou! Hora de entrar no modo de "espera".
+        Serial.printf("!!! Passo %d TEMPO CONCLUIDO. Alvo Final: M0=%.1f, M1=%.1f. Aguardando posicao...\n", passoAtual, target.motor0_target_deg, target.motor1_target_deg);
+        
+        // Garante que o alvo final seja cravado para o PID ter uma referência fixa
+        all_motors[0].target_deg = target.motor0_target_deg;
+        all_motors[1].target_deg = target.motor1_target_deg;
+        all_motors[2].target_deg = target.motor2_target_deg;
+        all_motors[3].target_deg = target.motor3_target_deg;
+        
+        aguardandoPosicao = true; // Ativa a flag de espera
+    }
+}
+
+
+//Movimento Quadril Direito
+
+void movimento_suave_quadril_direito() {
+    if (aguardandoPosicao) {
+        Passo target = sequenciaDePassos_quadril_direito[passoAtual];
+
+        float posAtualM0 = readEncoderDeg(all_motors[0]);
+        float posAtualM1 = readEncoderDeg(all_motors[1]);
+        float posAtualM2 = readEncoderDeg(all_motors[2]);
+        float posAtualM3 = readEncoderDeg(all_motors[3]);
+        bool motor0_chegou = fabsf(angleError(target.motor0_target_deg, posAtualM0)) <= TOLERANCIA_GRAUS;
+        bool motor1_chegou = fabsf(angleError(target.motor1_target_deg, posAtualM1)) <= TOLERANCIA_GRAUS;
+        bool motor2_chegou = fabsf(angleError(target.motor2_target_deg, posAtualM2)) <= TOLERANCIA_GRAUS;
+        bool motor3_chegou = fabsf(angleError(target.motor3_target_deg, posAtualM3)) <= TOLERANCIA_GRAUS;
+
+        all_motors[0].modoPidAtual = target.ganhoMotor0;
+        all_motors[1].modoPidAtual = target.ganhoMotor1;
+        all_motors[2].modoPidAtual = target.ganhoMotor2;
+        all_motors[3].modoPidAtual = target.ganhoMotor3;
+        
+        if (motor0_chegou && motor1_chegou && motor2_chegou && motor3_chegou) {
+            Serial.printf(">>> POSICAO CONFIRMADA! M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f <<<\n", posAtualM0, posAtualM1, posAtualM2, posAtualM3);
+            
+            aguardandoPosicao = false; 
+
+            motor_pos_inicial[0] = readEncoderDeg(all_motors[0]);
+            motor_pos_inicial[1] = readEncoderDeg(all_motors[1]);
+            motor_pos_inicial[2] = readEncoderDeg(all_motors[2]);
+            motor_pos_inicial[3] = readEncoderDeg(all_motors[3]);
+
+            passoAtual++;
+            if (passoAtual >= NUM_PASSOS) {
+                passoAtual = 0;
+            }
+            
+            tempoInicioMovimento = millis();
+            
+            Serial.printf("--- INICIANDO PROXIMO PASSO --- \nPasso: %d, Ponto de Partida: M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f\n", passoAtual, motor_pos_inicial[0], motor_pos_inicial[1], motor_pos_inicial[2], motor_pos_inicial[3]);
+        }
+
+        return; 
+    }
+
+
+    if (tempoInicioMovimento == 0) {
+        motor_pos_inicial[0] = readEncoderDeg(all_motors[0]);
+        motor_pos_inicial[1] = readEncoderDeg(all_motors[1]);
+        motor_pos_inicial[2] = readEncoderDeg(all_motors[2]);
+        motor_pos_inicial[3] = readEncoderDeg(all_motors[3]);
+        tempoInicioMovimento = millis();
+        Serial.printf("\n--- INICIANDO SEQUENCIA --- \nPasso: %d, Ponto de Partida: M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f\n", passoAtual, motor_pos_inicial[0], motor_pos_inicial[1], motor_pos_inicial[2], motor_pos_inicial[3]);
+    }
+
+    Passo target = sequenciaDePassos_quadril_direito[passoAtual];
+    unsigned long tempoDecorrido = millis() - tempoInicioMovimento;
+
+    if (tempoDecorrido < target.duracao_ms) {
+        // Interpola suavemente enquanto o tempo não acaba
+        float progresso = (float)tempoDecorrido / (float)target.duracao_ms;
+        float fator = (1.0 - cos(progresso * PI)) / 2.0;
+        all_motors[0].target_deg = motor_pos_inicial[0] + (target.motor0_target_deg - motor_pos_inicial[0]) * fator;
+        all_motors[1].target_deg = motor_pos_inicial[1] + (target.motor1_target_deg - motor_pos_inicial[1]) * fator;
+        all_motors[2].target_deg = motor_pos_inicial[2] + (target.motor2_target_deg - motor_pos_inicial[2]) * fator;
+        all_motors[3].target_deg = motor_pos_inicial[3] + (target.motor3_target_deg - motor_pos_inicial[3]) * fator;
+    } else {
+        // O tempo acabou! Hora de entrar no modo de "espera".
+        Serial.printf("!!! Passo %d TEMPO CONCLUIDO. Alvo Final: M0=%.1f, M1=%.1f. Aguardando posicao...\n", passoAtual, target.motor0_target_deg, target.motor1_target_deg);
+        
+        // Garante que o alvo final seja cravado para o PID ter uma referência fixa
+        all_motors[0].target_deg = target.motor0_target_deg;
+        all_motors[1].target_deg = target.motor1_target_deg;
+        all_motors[2].target_deg = target.motor2_target_deg;
+        all_motors[3].target_deg = target.motor3_target_deg;
+        
+        aguardandoPosicao = true; // Ativa a flag de espera
+    }
+}
+
+
+//Movimento Joelho Esquerdo
+
+void movimento_suave_joelho_esquerdo() {
+    if (aguardandoPosicao) {
+        Passo target = sequenciaDePassos_joelho_esquerdo[passoAtual];
+
+        float posAtualM0 = readEncoderDeg(all_motors[0]);
+        float posAtualM1 = readEncoderDeg(all_motors[1]);
+        float posAtualM2 = readEncoderDeg(all_motors[2]);
+        float posAtualM3 = readEncoderDeg(all_motors[3]);
+        bool motor0_chegou = fabsf(angleError(target.motor0_target_deg, posAtualM0)) <= TOLERANCIA_GRAUS;
+        bool motor1_chegou = fabsf(angleError(target.motor1_target_deg, posAtualM1)) <= TOLERANCIA_GRAUS;
+        bool motor2_chegou = fabsf(angleError(target.motor2_target_deg, posAtualM2)) <= TOLERANCIA_GRAUS;
+        bool motor3_chegou = fabsf(angleError(target.motor3_target_deg, posAtualM3)) <= TOLERANCIA_GRAUS;
+
+        all_motors[0].modoPidAtual = target.ganhoMotor0;
+        all_motors[1].modoPidAtual = target.ganhoMotor1;
+        all_motors[2].modoPidAtual = target.ganhoMotor2;
+        all_motors[3].modoPidAtual = target.ganhoMotor3;
+        
+        if (motor0_chegou && motor1_chegou && motor2_chegou && motor3_chegou) {
+            Serial.printf(">>> POSICAO CONFIRMADA! M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f <<<\n", posAtualM0, posAtualM1, posAtualM2, posAtualM3);
+            
+            aguardandoPosicao = false; 
+
+            motor_pos_inicial[0] = readEncoderDeg(all_motors[0]);
+            motor_pos_inicial[1] = readEncoderDeg(all_motors[1]);
+            motor_pos_inicial[2] = readEncoderDeg(all_motors[2]);
+            motor_pos_inicial[3] = readEncoderDeg(all_motors[3]);
+
+            passoAtual++;
+            if (passoAtual >= NUM_PASSOS) {
+                passoAtual = 0;
+            }
+            
+            tempoInicioMovimento = millis();
+            
+            Serial.printf("--- INICIANDO PROXIMO PASSO --- \nPasso: %d, Ponto de Partida: M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f\n", passoAtual, motor_pos_inicial[0], motor_pos_inicial[1], motor_pos_inicial[2], motor_pos_inicial[3]);
+        }
+
+        return; 
+    }
+
+
+    if (tempoInicioMovimento == 0) {
+        motor_pos_inicial[0] = readEncoderDeg(all_motors[0]);
+        motor_pos_inicial[1] = readEncoderDeg(all_motors[1]);
+        motor_pos_inicial[2] = readEncoderDeg(all_motors[2]);
+        motor_pos_inicial[3] = readEncoderDeg(all_motors[3]);
+        tempoInicioMovimento = millis();
+        Serial.printf("\n--- INICIANDO SEQUENCIA --- \nPasso: %d, Ponto de Partida: M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f\n", passoAtual, motor_pos_inicial[0], motor_pos_inicial[1], motor_pos_inicial[2], motor_pos_inicial[3]);
+    }
+
+    Passo target = sequenciaDePassos_joelho_esquerdo[passoAtual];
+    unsigned long tempoDecorrido = millis() - tempoInicioMovimento;
+
+    if (tempoDecorrido < target.duracao_ms) {
+        // Interpola suavemente enquanto o tempo não acaba
+        float progresso = (float)tempoDecorrido / (float)target.duracao_ms;
+        float fator = (1.0 - cos(progresso * PI)) / 2.0;
+        all_motors[0].target_deg = motor_pos_inicial[0] + (target.motor0_target_deg - motor_pos_inicial[0]) * fator;
+        all_motors[1].target_deg = motor_pos_inicial[1] + (target.motor1_target_deg - motor_pos_inicial[1]) * fator;
+        all_motors[2].target_deg = motor_pos_inicial[2] + (target.motor2_target_deg - motor_pos_inicial[2]) * fator;
+        all_motors[3].target_deg = motor_pos_inicial[3] + (target.motor3_target_deg - motor_pos_inicial[3]) * fator;
+    } else {
+        // O tempo acabou! Hora de entrar no modo de "espera".
+        Serial.printf("!!! Passo %d TEMPO CONCLUIDO. Alvo Final: M0=%.1f, M1=%.1f. Aguardando posicao...\n", passoAtual, target.motor0_target_deg, target.motor1_target_deg);
+        
+        // Garante que o alvo final seja cravado para o PID ter uma referência fixa
+        all_motors[0].target_deg = target.motor0_target_deg;
+        all_motors[1].target_deg = target.motor1_target_deg;
+        all_motors[2].target_deg = target.motor2_target_deg;
+        all_motors[3].target_deg = target.motor3_target_deg;
+        
+        aguardandoPosicao = true; // Ativa a flag de espera
+    }
+}
+
+
+//Movimento Joelho Direito
+
+void movimento_suave_joelho_direito() {
+    if (aguardandoPosicao) {
+        Passo target = sequenciaDePassos_joelho_direito[passoAtual];
+
+        float posAtualM0 = readEncoderDeg(all_motors[0]);
+        float posAtualM1 = readEncoderDeg(all_motors[1]);
+        float posAtualM2 = readEncoderDeg(all_motors[2]);
+        float posAtualM3 = readEncoderDeg(all_motors[3]);
+        bool motor0_chegou = fabsf(angleError(target.motor0_target_deg, posAtualM0)) <= TOLERANCIA_GRAUS;
+        bool motor1_chegou = fabsf(angleError(target.motor1_target_deg, posAtualM1)) <= TOLERANCIA_GRAUS;
+        bool motor2_chegou = fabsf(angleError(target.motor2_target_deg, posAtualM2)) <= TOLERANCIA_GRAUS;
+        bool motor3_chegou = fabsf(angleError(target.motor3_target_deg, posAtualM3)) <= TOLERANCIA_GRAUS;
+
+        all_motors[0].modoPidAtual = target.ganhoMotor0;
+        all_motors[1].modoPidAtual = target.ganhoMotor1;
+        all_motors[2].modoPidAtual = target.ganhoMotor2;
+        all_motors[3].modoPidAtual = target.ganhoMotor3;
+        
+        if (motor0_chegou && motor1_chegou && motor2_chegou && motor3_chegou) {
+            Serial.printf(">>> POSICAO CONFIRMADA! M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f <<<\n", posAtualM0, posAtualM1, posAtualM2, posAtualM3);
+            
+            aguardandoPosicao = false; 
+
+            motor_pos_inicial[0] = readEncoderDeg(all_motors[0]);
+            motor_pos_inicial[1] = readEncoderDeg(all_motors[1]);
+            motor_pos_inicial[2] = readEncoderDeg(all_motors[2]);
+            motor_pos_inicial[3] = readEncoderDeg(all_motors[3]);
+
+            passoAtual++;
+            if (passoAtual >= NUM_PASSOS) {
+                passoAtual = 0;
+            }
+            
+            tempoInicioMovimento = millis();
+            
+            Serial.printf("--- INICIANDO PROXIMO PASSO --- \nPasso: %d, Ponto de Partida: M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f\n", passoAtual, motor_pos_inicial[0], motor_pos_inicial[1], motor_pos_inicial[2], motor_pos_inicial[3]);
+        }
+
+        return; 
+    }
+
+
+    if (tempoInicioMovimento == 0) {
+        motor_pos_inicial[0] = readEncoderDeg(all_motors[0]);
+        motor_pos_inicial[1] = readEncoderDeg(all_motors[1]);
+        motor_pos_inicial[2] = readEncoderDeg(all_motors[2]);
+        motor_pos_inicial[3] = readEncoderDeg(all_motors[3]);
+        tempoInicioMovimento = millis();
+        Serial.printf("\n--- INICIANDO SEQUENCIA --- \nPasso: %d, Ponto de Partida: M0=%.1f, M1=%.1f, M2=%.1f, M3=%.1f\n", passoAtual, motor_pos_inicial[0], motor_pos_inicial[1], motor_pos_inicial[2], motor_pos_inicial[3]);
+    }
+
+    Passo target = sequenciaDePassos_joelho_direito[passoAtual];
+    unsigned long tempoDecorrido = millis() - tempoInicioMovimento;
+
+    if (tempoDecorrido < target.duracao_ms) {
+        // Interpola suavemente enquanto o tempo não acaba
+        float progresso = (float)tempoDecorrido / (float)target.duracao_ms;
+        float fator = (1.0 - cos(progresso * PI)) / 2.0;
+        all_motors[0].target_deg = motor_pos_inicial[0] + (target.motor0_target_deg - motor_pos_inicial[0]) * fator;
+        all_motors[1].target_deg = motor_pos_inicial[1] + (target.motor1_target_deg - motor_pos_inicial[1]) * fator;
+        all_motors[2].target_deg = motor_pos_inicial[2] + (target.motor2_target_deg - motor_pos_inicial[2]) * fator;
+        all_motors[3].target_deg = motor_pos_inicial[3] + (target.motor3_target_deg - motor_pos_inicial[3]) * fator;
+    } else {
+        // O tempo acabou! Hora de entrar no modo de "espera".
+        Serial.printf("!!! Passo %d TEMPO CONCLUIDO. Alvo Final: M0=%.1f, M1=%.1f. Aguardando posicao...\n", passoAtual, target.motor0_target_deg, target.motor1_target_deg);
+        
+        // Garante que o alvo final seja cravado para o PID ter uma referência fixa
+        all_motors[0].target_deg = target.motor0_target_deg;
+        all_motors[1].target_deg = target.motor1_target_deg;
+        all_motors[2].target_deg = target.motor2_target_deg;
+        all_motors[3].target_deg = target.motor3_target_deg;
+        
+        aguardandoPosicao = true; // Ativa a flag de espera
+    }
+}
+
+
 void movimento_suave() {
     if (aguardandoPosicao) {
         Passo target = sequenciaDePassos[passoAtual];
@@ -328,6 +643,11 @@ void movimento_suave() {
             passoAtual++;
             if (passoAtual >= NUM_PASSOS) {
                 passoAtual = 0;
+            }
+
+            if (passoAtual == 2 || passoAtual == 9) {
+                qtde_passos++;
+                Serial.printf("!!! INCREMENTO CONCLUÍDO. qtde_passos: %d\n", qtde_passos);
             }
             
             tempoInicioMovimento = millis();
@@ -617,6 +937,11 @@ void setup() {
 
     // Endpoints principais
     server.on("/start-marcha", HTTP_GET, [](){ startComPerfil("marcha"); });
+    server.on("/start-quadril_esquerdo", HTTP_GET, [](){ startComPerfil("quadril_esquerdo"); });
+    server.on("/start-quadril_direito", HTTP_GET, [](){ startComPerfil("quadril_direito"); });
+    server.on("/start-joelho_esquerdo", HTTP_GET, [](){ startComPerfil("joelho_esquerdo"); });
+    server.on("/start-joelho_direito", HTTP_GET, [](){ startComPerfil("joelho_direito"); });
+
     server.on("/stop", HTTP_GET, handleStop);
     server.on("/status", HTTP_GET, handleStatus);
     // CORS preflight
@@ -753,7 +1078,22 @@ void loop() {
     server.handleClient();
    if (marcha_ativa) {
         // Se a marcha está ativa, executa a sequência de passos suave.
-        movimento_suave();
+        if(perfil=="marcha"){
+            movimento_suave();
+        }
+        if(perfil=="quadril_esquerdo"){
+            movimento_suave_quadril_esquerdo();
+        }
+        if(perfil=="quadril_direito"){
+            movimento_suave_quadril_direito();
+        }
+        if(perfil=="joelho_esquerdo"){
+            movimento_suave_joelho_esquerdo();
+        }
+        if(perfil=="joelho_direito"){
+            movimento_suave_joelho_direito();
+        }
+
     } else {
         // Se a marcha está parada, o alvo é sempre zero para todos os motores.
         // O controle PID (que roda em suas próprias tasks) se encarregará de
