@@ -51,6 +51,7 @@ void handleStop() {
 
     // --- ADICIONADO ---
     // Reseta o estado da máquina de estados da marcha para um início limpo na próxima vez.
+    qtde_passos = 0;
     passoAtual = 0;
     tempoInicioMovimento = 0;
     aguardandoPosicao = false;
